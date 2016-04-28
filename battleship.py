@@ -1,4 +1,14 @@
 #!/usr/bin/python3
+"""Battleship - Treehouse Techdegree - Python Web Development
+
+Implements the classic board game Battleship.
+"""
+__author__ = "Chris Freeman"
+__copyright__ = "Copyright 2016, Chris Freeman"
+__license__ = "MIT"
+
+# ignore pylint warning about using 'input'
+# pylint: disable=bad-builtin
 
 SHIP_INFO = [
     # ("Aircraft Carrier", 5),
@@ -29,14 +39,17 @@ BANNER = r"""
 
 
 def clear_screen():
+    """Clear screen using VT Esc sequence"""
     print("\033c", end="")
 
 
 def show_banner():
+    """print game banner"""
     print(BANNER)
 
 
 def print_legend():
+    """Print legend of board symbols"""
     print("Legend: Ships {} or {}, Empty:{}, Miss:{}, Hit:{}, Sunk:{}\n"
           "".format(VERTICAL_SHIP, HORIZONTAL_SHIP, EMPTY, MISS, HIT, SUNK))
 
@@ -60,6 +73,7 @@ def board_heading():
 
 
 def print_boards(opp_name, player_name, opp_view, player_view):
+    """Print both player boards"""
     # boards titles
     print("   {:_^22}        {:_^22}\n".format(
         opp_name + "'s board:", player_name + "'s board:"))
@@ -68,7 +82,7 @@ def print_boards(opp_name, player_name, opp_view, player_view):
         print("   {:22}        {:22}".format(opp_line, player_line))
 
 
-def offset_to_coord(row, col, size=BOARD_SIZE):
+def offset_to_coord(row, col):
     """Generate board coordinate from a row and column number
 
     Args:
@@ -81,7 +95,7 @@ def offset_to_coord(row, col, size=BOARD_SIZE):
     return chr(ord('A') + col) + str(row + 1)
 
 
-def coord_to_offset(coord, size=BOARD_SIZE):
+def coord_to_offset(coord):
     """Generate a row and column number from a board coordinate
 
     Args:
@@ -116,11 +130,11 @@ def is_legal_coord(coord, board_size=BOARD_SIZE):
     except (TypeError, ValueError):
         return False
     # check if coord is on board
-    return (ship_col >= ord('A') and ship_col <= ord('A') + BOARD_SIZE - 1 and
-            ship_row >= 1 and ship_row <= BOARD_SIZE)
+    return (ship_col >= ord('A') and ship_col <= ord('A') + board_size - 1 and
+            ship_row >= 1 and ship_row <= board_size)
 
 
-def gen_ship_coords(anchor, size, direction, board_size=BOARD_SIZE):
+def gen_ship_coords(anchor, size, direction):
     """Generate ship board coordinate based on anchor location and size
 
     The ship coordinates start at the anchor position and run Down for
@@ -132,7 +146,6 @@ def gen_ship_coords(anchor, size, direction, board_size=BOARD_SIZE):
         anchor (str): two character board coordinate "A1"
         size (int): size of ship in board spaces
         orientation (str): is ship Horizontal or Vertical
-        board_size (Optional[int]): size of board. Defaults to BOARD_SIZE.
 
     Returns:
         List[str]: list of board coordinates, if valid. Empty list otherwise.
@@ -186,24 +199,8 @@ def get_anchor_coord():
                   "and Number as one word.".format(response))
 
 
-def get_guess(player):
-    """Ask user for guess"""
-    while True:
-        response = input("Enter {}'s guess (for example D4): "
-                         "".format(player.name)).strip()
-        guess = response.upper()
-        if guess in player.guesses:
-            print("Coordnate {} already guessed. Try Again.".format(response))
-            continue
-        if is_legal_coord(guess):
-            return guess
-        else:
-            print("Coordnate {} is not on the board. Please enter Letter "
-                  "and Number as one word.".format(response))
-
-
-def place_ships(player):
-    """Place players ships on board"""
+def define_fleet(player):
+    """Define player's ships and place on board"""
     # place each ship
     for ship_spec in SHIP_INFO:
         ship_name = ship_spec[0]
@@ -216,9 +213,9 @@ def place_ships(player):
         print("\n".join(player.board.get_player_view()))
         # display ship banner
         print("Placing {} (size:{})\n".format(ship_name, ship_size))
+
         # get ship placement details
-        valid_input = False
-        while not valid_input:
+        while True:
             # 1. ask if vertical or horizontal
             direction = get_vert_or_horiz()
             # 2. ask for top or left starting coordinate
@@ -234,13 +231,14 @@ def place_ships(player):
                       "Try again\n")
                 continue
             # input valid; last while loop
-            valid_input = True
-            ship = Ship(ship_name, ship_size, coords, direction)
-            # add ship to players list
-            player.ships.append(ship)
-            # add ship to game board
-            player.board.add_ship(ship)
-            # 5. redraw screen for next ship (at top of loop)
+            break
+        # create ship from input
+        ship = Ship(ship_name, ship_size, coords, direction)
+        # add ship to players list
+        player.add_ship(ship)
+        # place ship on game board
+        player.board.place_ship(ship)
+        # 5. redraw screen for next ship (at top of loop)
     # display top banner
     clear_screen()
     show_banner()
@@ -269,7 +267,7 @@ def take_turn(player, opponent):
     # stitch together board views for display
     print_boards(opponent.name, player.name, opp_view, player_view)
 
-    coord = get_guess(player)
+    coord = player.get_guess()
     # remember guessed coordinates
     player.guesses.append(coord)
     # process guess
@@ -369,7 +367,7 @@ class Player():
     """
 
     def __init__(self, name):
-        "Define player's name, board, ships, guesses"
+        """Define player's name, board, ships, guesses"""
         self.name = name
         # create dict of player's ships
         self.board = Board()
@@ -378,12 +376,33 @@ class Player():
         # for ship_name, ship_size in SHIP_INFO:
         #     self.ships[ship_name] = Ship(ship_name, size)
 
+    def add_ship(self, ship):
+        """add ship to current list of ships"""
+        self.ships.append(ship)
+
     def ships_left(self):
+        """Search for unsunken ships"""
         found = False
         for ship in self.ships:
             if not ship.sunk:
                 found = True
         return found
+
+    def get_guess(self):
+        """Ask user for guess"""
+        while True:
+            response = input("Enter {}'s guess (for example D4): "
+                             "".format(self.name)).strip()
+            guess = response.upper()
+            if guess in self.guesses:
+                print("Coordnate {} already guessed. Try Again."
+                      "".format(response))
+                continue
+            if is_legal_coord(guess):
+                return guess
+            else:
+                print("Coordnate {} is not on the board. Please enter Letter "
+                      "and Number as one word.".format(response))
 
 
 class Location():
@@ -449,8 +468,8 @@ class Board():
         view = [board_heading()]
         row_num = 1
         for row in self.grid:
-            view.append(str(row_num).rjust(2) + " " +
-                        " ".join([location.player_view() for location in row]))
+            view.append(str(row_num).rjust(2) + " " + " ".join(
+                [location.player_view() for location in row]))
             row_num += 1
         view.append("")
         return view
@@ -460,22 +479,11 @@ class Board():
         view = [board_heading()]
         row_num = 1
         for row in self.grid:
-            view.append(str(row_num).rjust(2) + " " +
-                        (" ".join([location.opponent_view() for location in row])))
+            view.append(str(row_num).rjust(2) + " " + " ".join(
+                [location.opponent_view() for location in row]))
             row_num += 1
         view.append("")
         return view
-
-    def opponent_print(self):
-        """Return opponent view of game board (without revealing ships)"""
-        print_board_heading()
-        row_num = 1
-        for row in self.grid:
-            print(str(row_num).rjust(2) + " " +
-                  (" ".join([location.opponent_view() for location in row])))
-            row_num += 1
-        print("")
-        print_legend()
 
     def verify_empty(self, coords):
         """Verify all coordinates are clear of ships"""
@@ -487,8 +495,8 @@ class Board():
                 result = False
         return result
 
-    def add_ship(self, ship):
-        """Add Ship to board"""
+    def place_ship(self, ship):
+        """Place Ship on board"""
         for coord in ship.coords:
             row, col = coord_to_offset(coord)
             # assign location ship to this ship
@@ -524,15 +532,16 @@ def main():
 
     # placing ships
     clear_screen()
-    # add ships to player1's board
-    place_ships(player1)
+    # defind player1's fleet and add to board
+    define_fleet(player1)
     show_banner()
     input("Time to add {}'s ships. Hit ENTER to continue....".format(name2))
-    place_ships(player2)
-    show_banner()
-    input("Game Time! {} goes first. Hit ENTER to continue....".format(name1))
+    # define player2's fleet and add to board
+    define_fleet(player2)
 
     # commense game play
+    show_banner()
+    input("Game Time! {} goes first. Hit ENTER to continue....".format(name1))
     game_continue = True
     while game_continue:
         take_turn(player1, player2)
